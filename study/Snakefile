@@ -1,0 +1,94 @@
+
+import numpy as np
+
+DATASETS = [("hopf",      "ns_2_mreg_2_msub_1_nf_32"),
+            ("pmfm_avg",  "ns_2_mreg_2_msub_1_nf_32"),
+            ("pmfm_bold", "ns_2_mreg_2_msub_1_nf_32"),
+            ("pmfm_bold", "ns_4_mreg_2_msub_1_nf_32")]
+
+MODELS = ['AN']
+NRUNS = 2
+NSIMULATIONS = 50
+DEFAULT_PARAMS = "ns_2_mreg_2_msub_1_nf_32"
+
+localrules: modify_connectome, all
+
+
+# Shared rules
+rule generate_dataset:
+    input:
+    output:
+        data="run/main/{dataset}/dataset.npz",
+        img=directory("run/main/{dataset}/img"),
+        surrogates="run/main/{dataset}/surrogates.npz"
+    threads: 8
+    shell: "python generate_datasets.py {wildcards.dataset} {output.data} {output.img} {NSIMULATIONS} {output.surrogates} {threads}"
+
+
+rule generate_dataset_hcp:
+    input:
+    output:
+        data="run/hcp/{dataset}/dataset.npz",
+        img=directory("run/hcp/{dataset}/img"),
+        surrogates="run/hcp/{dataset}/surrogates.npz"
+    threads: 1
+    shell: "python generate_datasets.py {wildcards.dataset} {output.data} {output.img} {NSIMULATIONS} {output.surrogates} {threads}"
+
+
+rule fit:
+    input: "run/{study}/{dataset}/dataset.npz"
+    output: directory("run/{study}/{dataset}/model{model}/{params}/run{run}/fit/")
+    threads: 8
+    shell: "python util.py fit {input} {wildcards.model} {wildcards.params} {wildcards.run} {output} {threads}"
+
+
+rule simulate:
+    input:
+        dataset="run/{study}/{dataset}/dataset.npz",
+        fit_direc="run/{study}/{dataset}/model{model}/{params}/run{run}/fit/"
+    output:
+        parameters="run/{study}/{dataset}/model{model}/{params}/run{run}/parameters.npz",
+        simulations="run/{study}/{dataset}/model{model}/{params}/run{run}/simulations.npz"
+    threads: 8,
+    shell: "python util.py simulate {input.dataset} {wildcards.model} {wildcards.params} {input.fit_direc} {NSIMULATIONS} {output.parameters} {output.simulations}"
+
+
+# Main stuff
+rule main:
+    input: [f"run/main/{dataset}/model{model}/{params}/run{run:02d}/simulations.npz" \
+            for (dataset, params) in DATASETS for run in range(0, NRUNS) for model in MODELS]
+
+rule modify_connectome:
+    input:
+        data="run/main/{dataset}/dataset.npz",
+        surrogates="run/main/{dataset}/surrogates.npz"
+    output:
+        data="run/conn/{dataset}-{variant}/dataset.npz",
+        img=directory("run/conn/{dataset}-{variant}/img"),
+        surrogates="run/conn/{dataset}-{variant}/surrogates.npz"
+    threads: 1
+    shell: "python modify_dataset.py {input.data} {output.data} {output.img} {wildcards.variant}; ln -rs {input.surrogates} {output.surrogates}"
+
+
+# Connectome influence study on pmfm
+rule conn:
+    input: expand(f"run/conn/pmfm_avg-eps_{{eps:0.3f}}_{{i:02d}}/modelAN/{DEFAULT_PARAMS}/run{{run:02d}}/simulations.npz", \
+                  eps=np.logspace(-2, 0, 5), i=[0,1,2,3], run=[0]) + \
+           expand(f"run/conn/pmfm_avg-logw/modelAN/{DEFAULT_PARAMS}/run{{run:02d}}/simulations.npz", run=[0])
+
+
+# Real data from Human Connectome Project
+rule hcp:
+    input: expand("run/hcp/hcp_{conn}_{preproc}/model{model}/{params}/run{run:02d}/simulations.npz",                  \
+                  conn=["linw", "logw", "linwhom", "logwhom"], preproc=["orig", "gsr", "dicer"], model=["AN", "AB"],  \
+                  params=["ns_3_mreg_3_msub_2_nf_32"], run=range(0, NRUNS)),                                          \
+           expand("run/hcp/hcp_linw_dicer/model{model}/{params}/run{run:02d}/simulations.npz",                        \
+                  params=["ns_1_mreg_3_msub_2_nf_32", "ns_2_mreg_3_msub_2_nf_32", "ns_3_mreg_3_msub_2_nf_32", "ns_4_mreg_3_msub_2_nf_32", "ns_5_mreg_3_msub_2_nf_32",  \
+                          "ns_3_mreg_1_msub_2_nf_32", "ns_3_mreg_2_msub_2_nf_32", "ns_3_mreg_3_msub_2_nf_32", "ns_3_mreg_4_msub_2_nf_32", "ns_3_mreg_5_msub_2_nf_32",  \
+                          "ns_3_mreg_3_msub_1_nf_32", "ns_3_mreg_3_msub_2_nf_32", "ns_3_mreg_3_msub_3_nf_32", "ns_3_mreg_3_msub_4_nf_32", "ns_3_mreg_3_msub_5_nf_32"], \
+                  model=['AB'], run=range(0,NRUNS))
+
+
+
+rule all:
+    input: rules.main.input, rules.conn.input
