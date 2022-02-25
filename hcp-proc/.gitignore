@@ -1,0 +1,8 @@
+.snakemake/
+
+doc/
+notebooks/
+data/Structural/*
+data/Diffusion/*
+data/rfMRI/*
+run/
