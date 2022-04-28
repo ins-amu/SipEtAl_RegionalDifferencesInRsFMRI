@@ -25,4 +25,4 @@ This work is licensed under MIT license. See LICENSE.txt for the full text.
 
 ### References
 
-[1] Viktor Sip, Spase Petkoski, Meysam Hashemi, Viktor Jirsa. Parameter inference on brain network models with unknown node dynamics and spatial heterogeneity. bioRxiv 2021.09.01.458521; doi: https://doi.org/10.1101/2021.09.01.458521
+[1] Viktor Sip, Spase Petkoski, Meysam Hashemi, Timo Dickscheid, Katrin Amunts, Viktor Jirsa. Parameter inference on brain network models with unknown node dynamics and spatial heterogeneity. bioRxiv 2021.09.01.458521; doi: https://doi.org/10.1101/2021.09.01.458521
