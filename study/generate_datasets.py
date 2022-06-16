@@ -1,5 +1,5 @@
 
-
+import os
 import sys
 import multiprocessing as mp
 
@@ -303,9 +303,14 @@ if __name__ == "__main__":
             return ds
 
 
-    elif testcase == "hcp":
+    elif testcase in ["hcp", "hcp100"]:
         name = "hcp"
-        subjects = ['100307', '100408', '101107', '101309', '101915', '103111', '103414', '103818']
+        with open(os.environ["SUBJECTS_FILE"]) as fh:
+            subjects_all = fh.read().splitlines()
+
+        if   testcase == "hcp":    subjects = subjects_all[:8]
+        elif testcase == "hcp100": subjects = subjects_all[:4]
+
         w = np.array([normalize(np.genfromtxt(f"data/{subj}/weights.txt")) for subj in subjects])
         if args[0] == "linw":
             pass

@@ -1,6 +1,7 @@
 
 import os
 import sys
+import argparse
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -374,7 +375,7 @@ def get_test_data(ds, model, examples):
     return data
 
 
-def fit_dataset(dataset_file, modelname, param_string, run_id, output_dir):
+def fit_dataset(dataset_file, modelname, param_string, run_id, output_dir, train_ratio=1.0):
     os.makedirs(output_dir)
 
     ds = ndsv.Dataset.from_file(dataset_file)
@@ -384,20 +385,28 @@ def fit_dataset(dataset_file, modelname, param_string, run_id, output_dir):
     batch_size = 16
     ipe = int(np.ceil(ndata/batch_size))
 
+    train_mask = np.zeros((ds.nsub, ds.nreg), dtype=bool)
+    train_mask[np.unravel_index(np.random.choice(ds.nsub*ds.nreg, int(train_ratio*ds.nsub*ds.nreg), replace=False),
+                                (ds.nsub, ds.nreg))] = True
+    np.save(os.path.join(output_dir, "train_mask.npy"), train_mask)
+
     lr_schedule = tf.keras.optimizers.schedules.PiecewiseConstantDecay([2000*ipe], [3e-3, 1e-3])
     optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
 
-    runner = ndsv.training.Runner(optimizer=optimizer, batch_size=batch_size, epochs=3001, nsamples=8,
+    runner = ndsv.training.Runner(optimizer=optimizer, batch_size=batch_size,
+                                  # epochs=3001,
+                                  epochs=101,
+                                  nsamples=8,
                                   clip_gradients=(-1000,1000),
                                   betax=ndsv.training.linclip(0, 500, 0., 1.),
                                   betap=ndsv.training.linclip(0, 500, 0., 1.))
 
     # Create callback function
-    test_data = get_test_data(ds, model, [(0,50), (3,50), (7,50)])
+    test_data = get_test_data(ds, model, [(0,50), (3,50), (1,50)])
 
     os.makedirs(os.path.join(output_dir, "img"))
     def callback(state, model):
-        if (state.epoch % 200 != 0):
+        if (state.epoch % 20 != 0):
             return
         for i in np.r_[:ds.thetareg.shape[2]]:
             plot_params_reg(state, model, ds, i,  os.path.join(output_dir, f"img/params-reg{i}_{state.epoch:05d}.png"))
@@ -408,7 +417,7 @@ def fit_dataset(dataset_file, modelname, param_string, run_id, output_dir):
         plot_projection(state, model, test_data, os.path.join(output_dir, f"img/proj_{state.epoch:05d}.png"))
 
     # Run the training
-    hist = ndsv.training.train(model, ds, runner, fh=sys.stdout, callback=callback)
+    hist = ndsv.training.train(model, ds, runner, fh=sys.stdout, callback=callback, mask_train=train_mask)
     dfh = hist.as_dataframe()
 
     # Save the history
@@ -466,18 +475,19 @@ if __name__ == "__main__":
     cmd = sys.argv.pop(1)
 
     if cmd == "fit":
-        dataset_file = sys.argv[1]
-        model = sys.argv[2]
-        param_string = sys.argv[3]
-        run_id = int(sys.argv[4])
-        output_dir = sys.argv[5]
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--train-ratio', default=1.0, type=float)
+        parser.add_argument('dataset_file')
+        parser.add_argument('model')
+        parser.add_argument('param_string')
+        parser.add_argument('run_id', type=int)
+        parser.add_argument('output_dir')
+        parser.add_argument('nthreads', type=int)
+        args = parser.parse_args()
 
-        if len(sys.argv) == 7:
-            nthreads = int(sys.argv[6])
-            tf.config.threading.set_inter_op_parallelism_threads(nthreads)
-            tf.config.threading.set_intra_op_parallelism_threads(nthreads)
-
-        fit_dataset(dataset_file, model, param_string, run_id, output_dir)
+        tf.config.threading.set_inter_op_parallelism_threads(args.nthreads)
+        tf.config.threading.set_intra_op_parallelism_threads(args.nthreads)
+        fit_dataset(args.dataset_file, args.model, args.param_string, args.run_id, args.output_dir, train_ratio=args.train_ratio)
 
     elif cmd == "simulate":
         tf.config.threading.set_inter_op_parallelism_threads(1)

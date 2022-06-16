@@ -772,6 +772,7 @@ class RegX(RegModel):
 
         self.latent = 'x'
         self.lambda_fx = lambda_fx if (lambda_fx is not None) else tf.zeros(ns, dtype=tf.float32)
+        self.elbo = None
 
 
     def encode(self, subj_ind, yobs, u):
@@ -868,6 +869,7 @@ class RegX(RegModel):
             logq_us = log_normal_pdf(us, usmu, uslv, raxis=1)
             elbo += 1./self.nreg * (logp_us - logq_us)
 
+        self.elbo = tf.reshape(elbo, (batch_size, nsamples))
         return tf.reduce_mean(-elbo + apen + xpen + fxpen + wpen)
 
 
