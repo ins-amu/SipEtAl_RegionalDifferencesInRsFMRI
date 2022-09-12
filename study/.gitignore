@@ -2,3 +2,5 @@
 .ipynb_checkpoints/
 __pycache__/
 run/
+data/*/*_orig.npz
+data/*/*_gsr.npz
