@@ -200,7 +200,7 @@ def train(model, dataset, runner, fh=None, callback=None, mask_train=None):
         for test_batch in dataset_test:
             loss_test(model.loss(test_batch, nsamples=runner.nsamples, betax=betax, betap=betap))
 
-        hist.add(epoch, loss.result().numpy(), betax.numpy(), betap.numpy(), model, loss_test.result())
+        hist.add(epoch, loss.result().numpy(), betax.numpy(), betap.numpy(), model, loss_test.result().numpy())
 
         if fh:
             hist.print_last(fh)

@@ -309,7 +309,7 @@ if __name__ == "__main__":
             subjects_all = fh.read().splitlines()
 
         if   testcase == "hcp":    subjects = subjects_all[:8]
-        elif testcase == "hcp100": subjects = subjects_all[:4]
+        elif testcase == "hcp100": subjects = subjects_all
 
         w = np.array([normalize(np.genfromtxt(f"data/{subj}/weights.txt")) for subj in subjects])
         if args[0] == "linw":

@@ -4,7 +4,6 @@ from collections import OrderedDict
 import numpy as np
 
 import tensorflow as tf
-import tensorflow_probability as tfp
 from tensorflow import keras
 
 from .Dataset import get_network_input_obs
@@ -566,7 +565,7 @@ class RegEta(RegModel):
     def __init__(self, ns, mreg, msub, nreg, nsub, nt, nobs, upsample_factor=1, fix_observation=False,
                  prediction='normal', network_input=True, shared_input=False,
                  ng=None, f_units=32, encoder_units=32, lambda_a=0.0, lambda_x=0.0, lambda_fx=None, alpha=0.0,
-                 activation='relu'):
+                 activation='relu', kl_sub_factor=1.0):
 
         super().__init__(ns, mreg, msub, nreg, nsub, nt, nobs, upsample_factor=upsample_factor,
                          fix_observation=fix_observation, prediction=prediction, network_input=network_input,
@@ -587,6 +586,7 @@ class RegEta(RegModel):
 
         self.latent = 'eta'
         self.lambda_fx = lambda_fx if (lambda_fx is not None) else tf.zeros(ns, dtype=tf.float32)
+        self.kl_sub_factor = kl_sub_factor
 
 
     def encode(self, subj_ind, yobs, u):
@@ -675,7 +675,7 @@ class RegEta(RegModel):
         xpen = self.lambda_x * tf.reduce_sum(tf.square(x), axis=[1,2])
         apen = self.lambda_a * tf.linalg.norm(self.Ap, ord=1)
         wpen = tf.reduce_sum(self.source_model.losses)
-        elbo = logp_y_x - betax*(klx0 + kleta) - betap*(klreg + klsub)
+        elbo = logp_y_x - betax*(klx0 + kleta) - betap*klreg - self.kl_sub_factor*klsub
 
         # fx penalties
         xdiff = x[:,1:,:] - x[:,:-1,:]
@@ -750,7 +750,7 @@ class RegX(RegModel):
     def __init__(self, ns, mreg, msub, nreg, nsub, nt, nobs, upsample_factor=1, fix_observation=False,
                  prediction='normal', network_input=True, shared_input=False, ng=None,
                  f_units=32, encoder_units=32, lambda_a=0.0, lambda_x=0.0, lambda_fx=None, alpha=0.0,
-                 activation='relu'):
+                 activation='relu', kl_sub_factor=1.0):
 
         super().__init__(ns, mreg, msub, nreg, nsub, nt, nobs, upsample_factor=upsample_factor,
                          fix_observation=fix_observation, prediction=prediction,
@@ -773,6 +773,7 @@ class RegX(RegModel):
         self.latent = 'x'
         self.lambda_fx = lambda_fx if (lambda_fx is not None) else tf.zeros(ns, dtype=tf.float32)
         self.elbo = None
+        self.kl_sub_factor = kl_sub_factor
 
 
     def encode(self, subj_ind, yobs, u):
@@ -860,7 +861,7 @@ class RegX(RegModel):
 
         xpen = self.lambda_x * tf.reduce_sum(tf.square(x), axis=[1,2])
         apen = self.lambda_a * tf.linalg.norm(self.Ap, ord=1)
-        elbo = logp_y_x + betax*(logp_x - logq_x) - betap*(klreg + klsub)
+        elbo = logp_y_x + betax*(logp_x - logq_x) - betap*klreg - self.kl_sub_factor*klsub
         wpen = tf.reduce_sum(self.source_model.losses)
 
         if self.shared_input:
