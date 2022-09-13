@@ -1,6 +1,6 @@
 
 
-# Parameter inference on brain network models with unknown node dynamics and spatial heterogeneity
+# Characterization of regional differences in resting-state fMRI with a data-driven network model of brain dynamics
 
 
 This repository contains the code used in [1].
