@@ -25,4 +25,4 @@ This work is licensed under MIT license. See LICENSE.txt for the full text.
 
 ### References
 
-[1] Viktor Sip, Spase Petkoski, Meysam Hashemi, Timo Dickscheid, Katrin Amunts, Viktor Jirsa. Parameter inference on brain network models with unknown node dynamics and spatial heterogeneity. bioRxiv 2021.09.01.458521; doi: https://doi.org/10.1101/2021.09.01.458521
+[1] Viktor Sip, Meysam Hashemi, Timo Dickscheid, Katrin Amunts, Spase Petkoski, Viktor Jirsa. Characterization of regional differences in resting-state fMRI with a data-driven network model of brain dynamics. Science Advances 9, eabq7547(2023). doi:[10.1126/sciadv.abq7547](https://doi.org/10.1126/sciadv.abq7547)
