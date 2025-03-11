@@ -22,7 +22,7 @@ def calc_dfc(y, half_window):
 class Dataset:
     """Object to hold the simulated or empirical data"""
 
-    def __init__(self, name, t, x, y, thetareg, thetasub, w, description=None):
+    def __init__(self, name, t, x, y, thetareg, thetasub, w, description=None, to_dtype=None):
         self.name = name
 
         assert t.ndim == 1
@@ -40,6 +40,14 @@ class Dataset:
         assert thetasub.shape[0] == nsub
         assert w.shape == (nsub, nreg, nreg)
 
+        if to_dtype is not None:
+            t = t.astype(to_dtype)
+            x = x.astype(to_dtype)
+            y = y.astype(to_dtype)
+            thetareg = thetareg.astype(to_dtype)
+            thetasub = thetasub.astype(to_dtype)
+            w = w.astype(to_dtype)
+
         self.t = t
         self.x = x
         self.y = y
@@ -55,11 +63,11 @@ class Dataset:
         self.description = description if description is not None else ""
 
     @classmethod
-    def from_file(cls, filename):
+    def from_file(cls, filename, to_dtype=None):
         data = np.load(filename)
         return cls(name=data['name'], t=data['t'], x=data['x'], y=data['y'],
                    thetareg=data['thetareg'], thetasub=data['thetasub'],
-                   w=data['w'], description=data['description'])
+                   w=data['w'], description=data['description'], to_dtype=to_dtype)
 
 
     def save(self, filename):
@@ -114,7 +122,7 @@ def get_network_input_obs(w, y, comp=0):
     nsub, nreg, nobs, nt = y.shape
     assert w.shape == (nsub, nreg, nreg)
 
-    yinp = np.zeros((nsub, nreg, 1, nt))
+    yinp = np.zeros((nsub, nreg, 1, nt), dtype=y.dtype)
     for i in range(nsub):
         for j in range(nreg):
             yinp[i, j, 0, :] = np.dot(w[i,j,:], y[i, :, comp, :])

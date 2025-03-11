@@ -117,7 +117,7 @@ def get_train_step_fn():
     @tf.function
     def train_step(model, training_batch, runner, betax, betap):
         with tf.GradientTape() as tape:
-            loss = model.loss(training_batch, nsamples=runner.nsamples, betax=betax, betap=betap)
+            loss = model.vae_loss(training_batch, nsamples=runner.nsamples, betax=betax, betap=betap)
 
         gradients = tape.gradient(loss, model.trainable_variables)
 
@@ -137,6 +137,12 @@ def get_train_step_fn():
         return loss
 
     return train_step
+
+def get_eval_fn():
+    @tf.function
+    def eval_loss(model, test_batch, runner, betax, betap):
+        return model.vae_loss(test_batch, nsamples=runner.nsamples, betax=betax, betap=betap)
+    return eval_loss
 
 
 class History:
@@ -186,7 +192,7 @@ def train(model, dataset, runner, fh=None, callback=None, mask_train=None):
         hist.print_header(fh)
 
     train_step = get_train_step_fn()
-
+    test_eval  = get_eval_fn()
 
     for epoch in range(runner.epochs):
         betax = tf.constant(runner.betax(epoch), dtype=tf.float32)
@@ -198,7 +204,7 @@ def train(model, dataset, runner, fh=None, callback=None, mask_train=None):
 
         loss_test = tf.keras.metrics.Mean()
         for test_batch in dataset_test:
-            loss_test(model.loss(test_batch, nsamples=runner.nsamples, betax=betax, betap=betap))
+            loss_test(test_eval(model, test_batch, runner, betax=betax, betap=betap))
 
         hist.add(epoch, loss.result().numpy(), betax.numpy(), betap.numpy(), model, loss_test.result().numpy())
 

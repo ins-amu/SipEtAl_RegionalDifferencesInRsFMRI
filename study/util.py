@@ -358,12 +358,6 @@ def get_model(modelname, param_string, ds):
 
     common_params.update(params)
 
-    # Because GPU implementation cannot handle zero parameters
-    kl_sub_factor = 1.0
-    if common_params['msub'] == 0:
-        common_params['msub'] = 1
-        common_params['kl_sub_factor'] = 1000.
-
     if modelname == 'AN':
         model = ndsv.models.RegX(**common_params, prediction='normal', shared_input=False)
     elif modelname == 'AS':
@@ -408,8 +402,9 @@ def get_test_data(ds, model, examples):
 def fit_dataset(dataset_file, modelname, param_string, run_id, output_dir, train_ratio=1.0):
     os.makedirs(output_dir)
 
-    ds = ndsv.Dataset.from_file(dataset_file)
+    ds = ndsv.Dataset.from_file(dataset_file, to_dtype=np.float32)
     model = get_model(modelname, param_string, ds)
+    model.build(input_shape=None)
 
     ndata = int(train_ratio * ds.nreg * ds.nsub)
     batch_size = 64
@@ -448,10 +443,10 @@ def fit_dataset(dataset_file, modelname, param_string, run_id, output_dir, train
         plot_input(state, model, ds, test_subjects, os.path.join(output_dir, f"img/input_{state.epoch:05d}.png"))
         plot_projection(state, model, test_data, os.path.join(output_dir, f"img/proj_{state.epoch:05d}.png"))
 
-        params = model.encode_subjects(ds.w, ds.y)
+        params = model.encode_subjects(ds.w, ds.y, subject_batch_size=1)
         params.save(os.path.join(output_dir, f"img/params_{state.epoch:05d}.npz"))
 
-        model.save_weights(os.path.join(output_dir, f"models/model_{state.epoch:05d}"))
+        model.save_weights(os.path.join(output_dir, f"models/model_{state.epoch:05d}.weights.h5"))
 
 
     # Run the training
@@ -462,7 +457,7 @@ def fit_dataset(dataset_file, modelname, param_string, run_id, output_dir, train
     dfh.to_csv(os.path.join(output_dir, "hist.csv"), index=False)
 
     # Save the model
-    model.save_weights(os.path.join(output_dir, "model"))
+    model.save_weights(os.path.join(output_dir, "model.weights.h5"))
 
 
 
@@ -605,9 +600,9 @@ if __name__ == "__main__":
         parser.add_argument('nthreads', type=int)
         args = parser.parse_args()
 
-        # print(f"Running with {args.nthreads} threads")
-        # tf.config.threading.set_inter_op_parallelism_threads(args.nthreads)
-        # tf.config.threading.set_intra_op_parallelism_threads(args.nthreads)
+        print(f"Running with {args.nthreads} threads")
+        tf.config.threading.set_inter_op_parallelism_threads(args.nthreads)
+        tf.config.threading.set_intra_op_parallelism_threads(args.nthreads)
         fit_dataset(args.dataset_file, args.model, args.param_string, args.run_id, args.output_dir, train_ratio=args.train_ratio)
 
     elif cmd == "simulate":

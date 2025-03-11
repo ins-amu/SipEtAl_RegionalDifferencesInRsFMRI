@@ -188,7 +188,7 @@ class SmNormal(Sm):
             ki2, bi2 = None, None
 
         self.f = keras.Sequential([
-            keras.layers.InputLayer(input_shape=(input_shape,)),
+            keras.layers.InputLayer(shape=(input_shape,)),
             keras.layers.Dense(f_units, activation=activation,
                                kernel_initializer=ki1, bias_initializer=bi1,
                                kernel_regularizer=keras.regularizers.l2(alpha),
@@ -199,7 +199,8 @@ class SmNormal(Sm):
                                bias_regularizer=keras.regularizers.l2(alpha))
         ], name="f")
 
-        self.slv = tf.Variable(-2*tf.ones(self.ns, dtype=tf.float32), trainable=True, name="slv")
+        self.slv = self.add_weight(name="slv", shape=(self.ns,), initializer=tf.constant_initializer(-2.),
+                                   trainable=True)
 
 
     def tracked_variables(self):
@@ -338,7 +339,7 @@ class SmGmm(Sm):
         input_shape = ns + mreg + msub + int(network_input) + int(shared_input)
 
         self.f = keras.Sequential([
-            keras.layers.InputLayer(input_shape=(input_shape,)),
+            keras.layers.InputLayer(shape=(input_shape,)),
             keras.layers.Dense(f_units, activation='tanh',
                                kernel_regularizer=keras.regularizers.l2(alpha),
                                bias_regularizer=keras.regularizers.l2(alpha)),
@@ -471,25 +472,36 @@ class RegModel(tf.keras.Model):
         self.shared_input = shared_input
 
         # Subject-specific parameters (theta_subject)
-        self.tsub = tf.Variable(tf.random.normal((nsub, msub, 2), mean=0, stddev=0.01), trainable=True, name="tsub")
+        self.tsub = self.add_weight(name="tsub", shape=(nsub,msub,2), 
+                                    initializer=tf.random_normal_initializer(mean=0., stddev=0.01), trainable=True)
 
         # Shared input (if needed)
-        self.logtau = tf.Variable(tf.math.log(10.), dtype=tf.float32, trainable=True, name="logtau")
+        self.logtau = self.add_weight(name="logtau", shape=(1,), initializer=tf.constant_initializer(np.log(10.)),
+                                      trainable=True)
+
         if shared_input:
             ntup = nt * upsample_factor
-            self.us = tf.Variable(tf.random.normal((nsub, ntup, 2), mean=0, stddev=0.1), trainable=True, name="us")
+            self.us = self.add_weight(name="us", shape=(nsub, ntup, 2), 
+                                      initializer=tf.random_normal_initializer(mean=0., stddev=0.1), trainable=True)
+
         else:
             self.us = None
 
         # Projection
-        self.olv = tf.Variable(0*tf.ones(self.nobs), dtype=tf.float32, trainable=True, name="olv")
+        self.olv = self.add_weight(name="olv", shape=(self.nobs,), initializer=tf.zeros, trainable=True)
+
         if not fix_observation:
-            self.Ap = tf.Variable(tf.random.normal(mean=0, stddev=0.3, shape=(self.nobs, self.ns)),
-                                  trainable=True, name="Ap")
-            self.bp = tf.Variable(tf.zeros(self.nobs), dtype=tf.float32, trainable=True, name="bp")
+            self.Ap = self.add_weight(name="Ap", shape=(self.nobs, self.ns),
+                                      initializer=tf.random_normal_initializer(mean=0., stddev=0.3), trainable=True)            
+            self.bp = self.add_weight(name="bp", shape=(self.nobs,), initializer=tf.zeros, trainable=True)
+
         else:
-            self.Ap = tf.Variable(tf.eye(self.nobs, self.ns), trainable=False, name="Ap", dtype=tf.float32)
-            self.bp = tf.Variable(tf.zeros(self.nobs),        trainable=False, name="bp", dtype=tf.float32)
+            self.Ap = self.add_weight(name="Ap", shape=(self.nobs, self.ns),
+                                      initializer=tf.random_normal_initializer(mean=0., stddev=0.3), trainable=False)            
+            self.bp = self.add_weight(name="bp", shape=(self.nobs,), initializer=tf.zeros, trainable=False)
+
+    def build(self, input_shape):
+        self.source_model.build(input_shape)
 
 
     def call(self, inputs):
@@ -619,7 +631,7 @@ class RegEta(RegModel):
         tsubmu, tsublv = tf.unstack(tf.gather(self.tsub, subj_ind, axis=0), axis=-1)
         return etamu, etalv, x0mu, x0lv, tregmu, treglv, tsubmu, tsublv
 
-    def loss(self, training_batch, nsamples=8, betax=1.0, betap=1.0):
+    def vae_loss(self, training_batch, nsamples=8, betax=1.0, betap=1.0):
         """
         Return loss for a given training batch
         """
@@ -758,14 +770,14 @@ class RegX(RegModel):
                          lambda_a=lambda_a, lambda_x=lambda_x, alpha=alpha, activation=activation)
 
         self.param_encoder = keras.Sequential([
-            keras.layers.Bidirectional(keras.layers.LSTM(units=encoder_units, return_sequences=False,
-                                                         input_shape=(None, None, nobs+1+self.nsub))),
+            keras.Input(shape=(None, nobs+1+self.nsub)),
+            keras.layers.Bidirectional(keras.layers.LSTM(units=encoder_units, return_sequences=False)),
             keras.layers.Dense(units=mreg*2)
         ], name="param_encoder")
 
         self.state_encoder = keras.Sequential([
-            keras.layers.Bidirectional(keras.layers.LSTM(units=encoder_units, return_sequences=True,
-                                                         input_shape=(None, None, nobs+1+self.nsub))),
+            keras.Input(shape=(None, nobs+1+self.nsub)),
+            keras.layers.Bidirectional(keras.layers.LSTM(units=encoder_units, return_sequences=True)),
             keras.layers.Dense(units=upsample_factor*ns*2)
         ], name="state_encoder")
 
@@ -775,7 +787,7 @@ class RegX(RegModel):
         self.elbo = None
         self.kl_sub_factor = kl_sub_factor
 
-
+    @tf.function
     def encode(self, subj_ind, yobs, u):
         """
         Take the data (region timeseries + network input + one-hot vector for subject ID) and apply the encoders
@@ -806,7 +818,7 @@ class RegX(RegModel):
         return xmu, xlv, tregmu, treglv, tsubmu, tsublv
 
 
-    def loss(self, training_batch, nsamples=8, betax=1.0, betap=1.0):
+    def vae_loss(self, training_batch, nsamples=8, betax=1.0, betap=1.0):
         """
         Return loss for a given training batch
         """
@@ -874,7 +886,7 @@ class RegX(RegModel):
         return tf.reduce_mean(-elbo + apen + xpen + fxpen + wpen)
 
 
-    def encode_subjects(self, w, yobs, subj_ind=None):
+    def encode_subjects(self, w, yobs, subj_ind=None, subject_batch_size=None):
         nsub = w.shape[0]
         if subj_ind is None:
             # We are encoding all subjects
@@ -887,6 +899,9 @@ class RegX(RegModel):
         assert yobs.ndim == 4
         assert yobs.shape[:3] == (nsub, self.nreg, self.nobs)
         nt = yobs.shape[3]
+
+        if subject_batch_size is None:
+            subject_batch_size = nsub
 
         u = get_network_input_obs(w, yobs, comp=0)[:,:,0,:]
 
@@ -903,26 +918,34 @@ class RegX(RegModel):
         u = np.reshape(u, (nsub*self.nreg, nt))
 
         # Encode
-        xmu, xlv, tregmu, treglv, tsubmu, tsublv = self.encode(subj_ind, yobs, u)
-
         ic = np.zeros((nsub, self.nreg, self.ns, 2))
-        ic[:,:,:,0] =            np.reshape(xmu[:,0,:], (nsub, self.nreg, self.ns))
-        ic[:,:,:,1] = np.exp(0.5*np.reshape(xlv[:,0,:], (nsub, self.nreg, self.ns)))
-
         treg = np.zeros((nsub, self.nreg, self.mreg, 2))
-        treg[:,:,:,0] =            np.reshape(tregmu, (nsub, self.nreg, self.mreg))
-        treg[:,:,:,1] = np.exp(0.5*np.reshape(treglv, (nsub, self.nreg, self.mreg)))
-
         tsub = np.zeros((nsub, self.msub, 2))
-        # All regions should be the same, so we take the first one only
-        tsub[:,:,0] =            np.reshape(tsubmu, (nsub, self.nreg, self.msub))[:,0,:]
-        tsub[:,:,1] = np.exp(0.5*np.reshape(tsublv, (nsub, self.nreg, self.msub)))[:,0,:]
-
-        nts = xmu.shape[1]
+        nts = nt*self.upsample_factor
         x = np.zeros((nsub, self.nreg, self.ns, nts, 2))
-        x[:,:,:,:,0] =            np.reshape(np.swapaxes(xmu, 1, 2), (nsub, self.nreg, self.ns, nts))
-        x[:,:,:,:,1] = np.exp(0.5*np.reshape(np.swapaxes(xlv, 1, 2), (nsub, self.nreg, self.ns, nts)))
 
+        ifr = 0
+        while ifr < nsub:
+            ito = min(ifr + subject_batch_size, nsub)
+            bnsub = ito - ifr
+            ifrr, itor = ifr*self.nreg, ito*self.nreg
+
+            xmu, xlv, tregmu, treglv, tsubmu, tsublv = self.encode(subj_ind[ifrr:itor], yobs[ifrr:itor], u[ifrr:itor])
+
+            ic[ifr:ito,:,:,0] =            np.reshape(xmu[:,0,:], (bnsub, self.nreg, self.ns))
+            ic[ifr:ito,:,:,1] = np.exp(0.5*np.reshape(xlv[:,0,:], (bnsub, self.nreg, self.ns)))
+
+            treg[ifr:ito,:,:,0] =            np.reshape(tregmu, (bnsub, self.nreg, self.mreg))
+            treg[ifr:ito,:,:,1] = np.exp(0.5*np.reshape(treglv, (bnsub, self.nreg, self.mreg)))
+
+            # All regions should be the same, so we take the first one only
+            tsub[ifr:ito,:,0] =            np.reshape(tsubmu, (bnsub, self.nreg, self.msub))[:,0,:]
+            tsub[ifr:ito,:,1] = np.exp(0.5*np.reshape(tsublv, (bnsub, self.nreg, self.msub)))[:,0,:]
+
+            x[ifr:ito,:,:,:,0] =            np.reshape(np.swapaxes(xmu, 1, 2), (bnsub, self.nreg, self.ns, nts))
+            x[ifr:ito,:,:,:,1] = np.exp(0.5*np.reshape(np.swapaxes(xlv, 1, 2), (bnsub, self.nreg, self.ns, nts)))
+
+            ifr += subject_batch_size        
 
         params = Params(ic=ic, thetareg=treg, thetasub=tsub, x=x, us=us)
         return params

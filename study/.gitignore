@@ -4,3 +4,4 @@ __pycache__/
 run/
 data/*/*_orig.npz
 data/*/*_gsr.npz
+logs/
