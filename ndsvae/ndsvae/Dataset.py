@@ -59,15 +59,33 @@ class Dataset:
         self.nreg = nreg
         self.nk = ns
         self.nobs = nobs
+        self.nt = nt
 
         self.description = description if description is not None else ""
+
+    def __str__(self):
+        return f"Dataset(nsub={self.nsub},nreg={self.nreg},nobs={self.nobs})"
 
     @classmethod
     def from_file(cls, filename, to_dtype=None):
         data = np.load(filename)
-        return cls(name=data['name'], t=data['t'], x=data['x'], y=data['y'],
-                   thetareg=data['thetareg'], thetasub=data['thetasub'],
-                   w=data['w'], description=data['description'], to_dtype=to_dtype)
+
+        # Required elements
+        t = data['t']
+        y = data['y']
+        w = data['w']
+
+        nsub, nreg, nobs, nt = y.shape
+
+        # Optional elements
+        x        = data['x']        if 'x'        in data else np.zeros((nsub, nreg, 0, nt))
+        thetareg = data['thetareg'] if 'thetareg' in data else np.zeros((nsub, nreg, 0))
+        thetasub = data['thetasub'] if 'thetasub' in data else np.zeros((nsub, 0))
+        name        = data['name'] if 'name' in data else ''
+        description = data['description'] if 'description' in data else None
+
+        return cls(name=name, t=t, y=y, x=x, thetareg=thetareg, thetasub=thetasub,
+                   w=w, description=description, to_dtype=to_dtype)
 
 
     def save(self, filename):

@@ -519,7 +519,7 @@ class RegModel(tf.keras.Model):
     def tracked_variables_values(self):
         """Returns an list of tuples with the tracked variable names and values."""
         values = [self.Ap[i,j].numpy() for i in range(self.nobs) for j in range(self.ns)]
-        values += [self.bp[i].numpy() for i in range(self.nobs)] + [self.olv[0].numpy()] + [self.logtau.numpy()]
+        values += [self.bp[i].numpy() for i in range(self.nobs)] + [self.olv[0].numpy()] + [self.logtau[0].numpy()]
         return values + self.source_model.tracked_variables_values()
 
     def simulate_subjects(self, w, nt, ic=None, thetareg=None, thetasub=None, us=None, n=1):

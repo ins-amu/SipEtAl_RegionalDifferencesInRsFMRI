@@ -1,3 +1,4 @@
+import collections
 
 import tensorflow as tf
 import numpy as np
@@ -194,7 +195,7 @@ def train(model, dataset, runner, fh=None, callback=None, mask_train=None):
     train_step = get_train_step_fn()
     test_eval  = get_eval_fn()
 
-    for epoch in range(runner.epochs):
+    for epoch in range(1, runner.epochs+1):
         betax = tf.constant(runner.betax(epoch), dtype=tf.float32)
         betap = tf.constant(runner.betap(epoch), dtype=tf.float32)
 
@@ -218,3 +219,51 @@ def train(model, dataset, runner, fh=None, callback=None, mask_train=None):
         tf.keras.backend.clear_session()
 
     return hist
+
+
+def create_runner(config, dataset):
+    """Create a training runner from config"""
+
+    batch_size = config['batch_size']
+    test_ratio  = config.get('test_ratio', 0.)
+    train_ratio = 1. - test_ratio
+
+    # Steps per epoch
+    ndata = int(train_ratio * dataset.nreg * dataset.nsub)
+    spe = int(np.ceil(ndata/batch_size))
+
+    # Learning rate
+    lr = config['learning_rate']
+    if isinstance(lr, collections.abc.Sequence):
+        boundaries = [b*spe for b in config['lr_boundaries']]
+        learning_rate = tf.keras.optimizers.schedules.PiecewiseConstantDecay(boundaries, lr)
+    else:
+        learning_rate = lr
+
+    # Optimizer
+    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    
+    # Optional parameters
+    clip = config.get('clip_gradients', None)
+    if clip is not None:
+        clip = (-clip, clip)
+
+    betax = config.get('betax', None)
+    if betax is not None and isinstance(betax, collections.abc.Sequence):
+        betax = linclip(betax[0], betax[1], betax[2], betax[3])
+
+    betap = config.get('betap', None)
+    if betap is not None and isinstance(betap, collections.abc.Sequence):
+        betap = linclip(betap[0], betap[1], betap[2], betap[3])
+
+    # Runner
+    runner = Runner(optimizer=optimizer,
+                    batch_size=batch_size,
+                    epochs=config['epochs'],
+                    nsamples=config['nsamples'],
+                    clip_gradients=clip,
+                    betax=betax,
+                    betap=betap,
+    )
+
+    return runner

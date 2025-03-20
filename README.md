@@ -10,12 +10,13 @@ This repository contains the code used in [1].
 
 - Folder `hcp-proc/` contains the code needed for processing of Human Connectome Project data (in order to get the structural connectome and resting state fMRI, both in Desikan-Killiany parcellation).
 - Folder `ndsvae/` contains the code for the inference method.
-- Folder `study/` contains the scripts and notebooks for the simulations, inferences, and postprocessing. Entry point is the `Snakefile`.
+- Folder `scripts/` contains simplified scripts for using the method.
+- Folder `study/` contains the scripts and notebooks for the simulations, inferences, and postprocessing used in [1]. Entry point is the `Snakefile`.
 
 
 ### Environment
 
-Python 3.8 with standard scientific and neuroscientific libraries is necessary. Use the environment file `study/env.yml` to prepare the conda environment.
+Python 3.11 with standard scientific and neuroscientific libraries is necessary. Use the environment file `env.yaml` to prepare the conda environment.
 
 
 ### License
