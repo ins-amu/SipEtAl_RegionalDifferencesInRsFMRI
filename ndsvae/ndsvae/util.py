@@ -4,14 +4,52 @@ import tensorflow as tf
 
 from . import models, training
 
-def create_model(params, dataset):
-    """Create a model from model configuration."""
+def create_model_with_dataset(params, dataset):
+    """Create a model from model configuration and specific dataset.
+    
+    Parameters
+    ----------
+    params: dict
+        Configuration of the model
+    dataset: ndsvae.Dataset
+        Dataset to take the dimensions from.
 
-    params.update(dict(nsub=dataset.nsub, nreg=dataset.nreg, nt=dataset.nt, nobs=dataset.nobs))
+    Returns
+    -------
+    ndsv.models.RegX
+        Created model
+    """
+
+    return create_model(params, dataset.nsub, dataset.nreg, dataset.nt, dataset.nobs)
+
+
+def create_model(params, nsub, nreg, nt, nobs):
+    """Create a model from model configuration.
+    
+    Parameters
+    ----------
+    params: dict
+        Configuration of the model
+    nsub: int
+        Number of subjects
+    nreg: int
+        Number of regions
+    nt: int
+        Number of timepoints
+    nobs: int
+        Number of observed variables
+
+    Returns
+    -------
+    ndsv.models.RegX
+        Created model
+    """
+
+    params.update(dict(nsub=nsub, nreg=nreg, nt=nt, nobs=nobs))
     model = models.RegX(**params)
     model.build(input_shape=None)
-
     return model
+
 
 def get_example_data(dataset, model, examples):
     nsub, nreg, _, _ = dataset.y.shape

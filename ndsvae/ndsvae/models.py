@@ -523,6 +523,39 @@ class RegModel(tf.keras.Model):
         return values + self.source_model.tracked_variables_values()
 
     def simulate_subjects(self, w, nt, ic=None, thetareg=None, thetasub=None, us=None, n=1):
+        """Simulate the system for multiple subjects.
+
+        Parameters
+        ----------
+        w: np.array
+            Structural connectomes. Shape: (nsub, nreg, nreg).
+        nt: int
+            Number of timepoints to simulate.
+        ic: np.array, optional
+            Initial conditions. Shape: (nsub, nreg, ns, 2).
+            Last dimension corresponds to means and standard deviations.
+            If absent, random values from N(0,I) are sampled.
+        thetareg: np.array, optional
+            Regional parameters. Shape: (nsub, nreg, mreg, 2).
+            Last dimension corresponds to means and standard deviations.
+            If absent, random values from N(0,I) are sampled.
+        thetasub: np.array, optional
+            Subject parameters. Shape: (nsub, msub, 2).
+            Last dimension corresponds to means and standard deviations.
+            If absent, random values from N(0,I) are sampled.
+        us: np.array, optional
+            External input. Shape: (nsub, nt, 2).
+            Last dimension corresponds to means and standard deviations.
+            If absent, input is sampled as an AR process.
+        n: int, optional.
+            Number of samples.
+
+        Returns
+        -------
+        GeneratedData
+            Object containing all simulated data.
+        """
+
         nsub = w.shape[0]
         assert w.shape == (nsub, self.nreg, self.nreg)
 
@@ -566,7 +599,8 @@ class RegModel(tf.keras.Model):
                                                    self.Ap.numpy(), self.bp.numpy(), self.olv.numpy())
 
         # Average if needed
-        y = tf.math.reduce_mean(tf.reshape(y, (n, nsub, self.nreg, self.nobs, nt, self.upsample_factor)), axis=-1)
+        y = tf.math.reduce_mean(tf.reshape(y, (n, nsub, self.nreg, self.nobs, nt, self.upsample_factor)),
+                                axis=-1).numpy()
         return GeneratedData(x=x, y=y, thetareg=thetareg_samples, thetasub=thetasub_samples, us=us_samples)
 
 
@@ -886,7 +920,22 @@ class RegX(RegModel):
         return tf.reduce_mean(-elbo + apen + xpen + fxpen + wpen)
 
 
-    def encode_subjects(self, w, yobs, subj_ind=None, subject_batch_size=None):
+    def encode_subjects(self, w, y, subj_ind=None, subject_batch_size=None):
+        """Get parameters for a batch of nsub subjects.
+        
+        If `subj_ind` is not specified, all subjects are encoded.
+        
+        w: np.array
+            Structural connectome. Shape: (nsub, nreg, nreg).
+        y: np.array
+            Observations. Shape: (nsub, nreg, nobs, nt)
+        subj_ind: List[int]
+            List of subject indices. Length must be equal to nsub of `w` and `y`.
+            If absent, all subjects are encoded.
+        subject_batch_size: int
+            Size of the subject batch to process at the same time. Default=all.
+        """
+
         nsub = w.shape[0]
         if subj_ind is None:
             # We are encoding all subjects
@@ -896,14 +945,14 @@ class RegX(RegModel):
             assert len(subj_ind) == nsub
 
         assert w.shape == (nsub, self.nreg, self.nreg)
-        assert yobs.ndim == 4
-        assert yobs.shape[:3] == (nsub, self.nreg, self.nobs)
-        nt = yobs.shape[3]
+        assert y.ndim == 4
+        assert y.shape[:3] == (nsub, self.nreg, self.nobs)
+        nt = y.shape[3]
 
         if subject_batch_size is None:
             subject_batch_size = nsub
 
-        u = get_network_input_obs(w, yobs, comp=0)[:,:,0,:]
+        u = get_network_input_obs(w, y, comp=0)[:,:,0,:]
 
         us = None
         if self.shared_input:
@@ -914,7 +963,7 @@ class RegX(RegModel):
 
         # Reshape etc
         subj_ind = np.repeat(subj_ind, self.nreg, axis=0)
-        yobs = np.reshape(np.swapaxes(yobs, 2, 3), (nsub*self.nreg, nt, self.nobs))
+        y = np.reshape(np.swapaxes(y, 2, 3), (nsub*self.nreg, nt, self.nobs))
         u = np.reshape(u, (nsub*self.nreg, nt))
 
         # Encode
@@ -930,7 +979,7 @@ class RegX(RegModel):
             bnsub = ito - ifr
             ifrr, itor = ifr*self.nreg, ito*self.nreg
 
-            xmu, xlv, tregmu, treglv, tsubmu, tsublv = self.encode(subj_ind[ifrr:itor], yobs[ifrr:itor], u[ifrr:itor])
+            xmu, xlv, tregmu, treglv, tsubmu, tsublv = self.encode(subj_ind[ifrr:itor], y[ifrr:itor], u[ifrr:itor])
 
             ic[ifr:ito,:,:,0] =            np.reshape(xmu[:,0,:], (bnsub, self.nreg, self.ns))
             ic[ifr:ito,:,:,1] = np.exp(0.5*np.reshape(xlv[:,0,:], (bnsub, self.nreg, self.ns)))

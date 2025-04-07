@@ -44,7 +44,7 @@ train_mask = ndsv.util.get_training_mask(dataset, config['training']['test_ratio
 np.save(f"{outdir}/train_mask.npy", train_mask)
 
 # Create the model
-model = ndsv.util.create_model(config['model'], dataset)
+model = ndsv.util.create_model_with_dataset(config['model'], dataset)
 
 # Create the training runner
 runner = ndsv.training.create_runner(config['training'], dataset)

@@ -68,6 +68,15 @@ class Dataset:
 
     @classmethod
     def from_file(cls, filename, to_dtype=None):
+        """Load dataset from numpy .npz file. 
+
+        Parameters
+        ----------
+        filename: str
+            Path to the file to be loaded
+        to_dtype: data type
+            If present, convert the file content to the requested dtype.
+        """
         data = np.load(filename)
 
         # Required elements

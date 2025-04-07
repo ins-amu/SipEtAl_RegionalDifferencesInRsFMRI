@@ -66,7 +66,27 @@ def paramplot1d(ax, theta, title, xlabel, ylabel, scalar):
     plt.ylim(-3,3)
 
 
-def paramplot2d(ax, treg, title, xlabel, ylabel, scalar):
+def paramplot2d(ax, theta, title=None, xlabel=None, ylabel=None, scalar=None):
+    """Two-dimensional cross plot of parameters.
+
+    Parameters
+    ----------
+    ax: matplotlib.axes._axes.Axes
+        Axes to plot in.    
+    theta: np.array
+        Parameters to plot. Shape: (n, 2, 2). 
+        n is the number of points. Dimension 1 is the x/y position.
+        Dimension 2 are the means and standard deviations.
+    title: str, optional
+        Title of the plot
+    xlabel: str, optional:
+        x-label
+    ylabel: str, optional:
+        y-label
+    scalar: np.array, optional
+        Optional scalar to color the crosses. Shape: (n)
+    """
+
     cmap = matplotlib.cm.magma
 
     plt.sca(ax)
@@ -76,11 +96,11 @@ def paramplot2d(ax, treg, title, xlabel, ylabel, scalar):
 
     plt.title(title)
 
-    nreg = treg.shape[0]
-    for j in range(nreg):
+    n = theta.shape[0]
+    for j in range(n):
         color = cmap(norm(scalar[j])) if (scalar is not None) else 'k'
-        plt.plot([treg[j,0,0], treg[j,0,0]], [treg[j,1,0]-treg[j,1,1], treg[j,1,0]+treg[j,1,1]], color=color)
-        plt.plot([treg[j,0,0]-treg[j,0,1], treg[j,0,0]+treg[j,0,1]], [treg[j,1,0], treg[j,1,0]], color=color)
+        plt.plot([theta[j,0,0], theta[j,0,0]], [theta[j,1,0]-theta[j,1,1], theta[j,1,0]+theta[j,1,1]], color=color)
+        plt.plot([theta[j,0,0]-theta[j,0,1], theta[j,0,0]+theta[j,0,1]], [theta[j,1,0], theta[j,1,0]], color=color)
     plt.grid()
     plt.xlim(-3,3)
     plt.ylim(-3,3)

@@ -1,0 +1,29 @@
+dataset: "data.npz"
+
+model:
+    ns: 4
+    msub: 2
+    mreg: 3
+    f_units: 32
+    encoder_units: 32
+    shared_input: True
+    lambda_x: 0.01
+    alpha: 0.01
+
+training:
+    seed: 42
+    learning_rate: 0.001
+    batch_size: 128
+    epochs: 1000
+    nsamples: 8
+    clip_gradients: 1000.
+    betax: 1.
+    betap: [0, 500, 0., 1.]
+    test_ratio: 0.1
+
+output:
+    output_dir: "run/"
+    log: "run/log.txt"
+    save_interval: 100
+    example_subjects: [0,1]
+    example_regions: [[0,10], [1,10]]
