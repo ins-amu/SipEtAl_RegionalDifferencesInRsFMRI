@@ -3,7 +3,11 @@
 # Characterization of regional differences in resting-state fMRI with a data-driven network model of brain dynamics
 
 
-This repository contains the code used in [1].
+This repository contains the code used in the study by [Sip et al. (2023)](#references). The study explores building data-driven dynamical models of the brain activity captured with resting state fMRI, and their subsequent analysis.
+
+<p align="center">
+<img src="./misc/overview.png" height="300rm" align="center" style="margin-right: 20px;">
+</p>
 
 
 ### Structure
@@ -25,4 +29,4 @@ This work is licensed under MIT license. See LICENSE.txt for the full text.
 
 ### References
 
-[1] Viktor Sip, Meysam Hashemi, Timo Dickscheid, Katrin Amunts, Spase Petkoski, Viktor Jirsa. Characterization of regional differences in resting-state fMRI with a data-driven network model of brain dynamics. Science Advances 9, eabq7547(2023). doi:[10.1126/sciadv.abq7547](https://doi.org/10.1126/sciadv.abq7547)
+Viktor Sip, Meysam Hashemi, Timo Dickscheid, Katrin Amunts, Spase Petkoski, Viktor Jirsa. Characterization of regional differences in resting-state fMRI with a data-driven network model of brain dynamics. Science Advances 9, eabq7547(2023). doi:[10.1126/sciadv.abq7547](https://doi.org/10.1126/sciadv.abq7547)
